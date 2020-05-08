@@ -1,0 +1,82 @@
+---
+title: "Machine Learning Logistic Regression"
+author: "Mark Vazquez"
+date: "April 19, 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Logistic Regression 
+
+### Data Preprocessing
+```{r, results='asis'}
+dataset <- read.csv('Social_Network_ads.csv')
+dataset <- dataset[,3:5]
+library(caTools)
+split <- sample.split(dataset$Purchased, SplitRatio = .75)
+training_set <- subset(dataset, split == T)
+test_set <- subset(dataset, split == F)
+library(xtable)
+print(xtable(dataset[sample(nrow(dataset), 15),]), type = "latex", scalebox='1')
+```
+
+### Scaling our Data
+```{r}
+training_set[,1:2] = scale(training_set[,1:2])
+test_set[,1:2] = scale(test_set[,1:2])
+```
+
+```{r pressure, echo=FALSE, fig.cap="Sigmoid Function", out.width = '100%'}
+knitr::include_graphics("Sigmoid.png")
+```
+
+### Fitting Logistic Regression to the Training set
+```{r}
+logit = glm(formula = Purchased ~., 
+                family = binomial,
+                data = training_set)
+summary(logit)
+```
+
+$$\phi(z)=\frac{1}{1+e^{-z}}$$
+
+### Predicting the Test set Results
+```{r}
+prob_pred <- predict(logit, type = 'response', newdata = test_set[-3])
+head(prob_pred) #look and some y hats
+```
+
+$$\hat{y}=\left\{\begin{array}{ll}
+1 & \text { if } \phi(z) \geq 0.5 \\
+0 & \text { otherwise }
+\end{array}\right.$$
+```{r}
+y_pred = ifelse(prob_pred > 0.5, 1, 0)
+head(y_pred) #converted out y hat to Binary 
+```
+
+
+#### Results in data frame
+```{r}
+results <- data.frame(table(test_set[,3], y_pred))
+results
+accuracy <- 83/100
+paste("Our accuracy is ", accuracy)
+```
+
+### Plotting our Decision Boundry
+```{r}
+library(ggplot2)
+library(tidyverse)
+set <- training_set
+expand.grid('Age' = seq(min(set[, 1]) - 1, max(set[, 1]) + 1, by = 0.01),
+'EstimatedSalary' = seq(min(set[, 2]) - 1, max(set[, 2]) + 1, by = 0.01))%>%
+ mutate(prob_set=predict(logit, type = 'response', newdata = .),
+ y_grid = ifelse(prob_set > 0.5, 1, 0))%>%
+ ggplot()+
+ geom_point(aes(x=Age, y=EstimatedSalary, color=y_grid))+
+ geom_point(data=training_set, aes(x=Age, y=EstimatedSalary,colour=as.numeric(Purchased)))
+```
+
+
